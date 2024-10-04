@@ -5,7 +5,6 @@ import torch.nn as nn
 from models.gcn_layers import ResidualGatedGCNLayer, MLP
 from utils.model_utils import *
 
-
 class ResidualGatedGCNModel(nn.Module):
     """Residual Gated GCN Model for outputting predictions as edge adjacency matrices.
 
@@ -31,8 +30,8 @@ class ResidualGatedGCNModel(nn.Module):
         self.aggregation = config['aggregation']
         # Node and edge embedding layers/lookups
         self.nodes_coord_embedding = nn.Linear(self.node_dim, self.hidden_dim, bias=False)
-        self.edges_values_embedding = nn.Linear(1, self.hidden_dim//2, bias=False)
-        self.edges_embedding = nn.Embedding(self.voc_edges_in, self.hidden_dim//2)
+        self.edges_values_embedding = nn.Linear(1, self.hidden_dim // 2, bias=False)
+        self.edges_embedding = nn.Embedding(self.voc_edges_in, self.hidden_dim // 2)
         # Define GCN Layers
         gcn_layers = []
         for layer in range(self.num_layers):
@@ -60,19 +59,23 @@ class ResidualGatedGCNModel(nn.Module):
             loss: Value of loss function
         """
         # Node and edge embedding
-        x = self.nodes_coord_embedding(x_nodes_coord)  # B x V x H
-        e_vals = self.edges_values_embedding(x_edges_values.unsqueeze(3))  # B x V x V x H
-        e_tags = self.edges_embedding(x_edges)  # B x V x V x H
+        x = self.nodes_coord_embedding(x_nodes_coord)
+        e_vals = self.edges_values_embedding(x_edges_values.unsqueeze(3))
+        e_tags = self.edges_embedding(x_edges)
         e = torch.cat((e_vals, e_tags), dim=3)
+        
         # GCN layers
+        """
         for layer in range(self.num_layers):
-            x, e = self.gcn_layers[layer](x, e)  # B x V x H, B x V x V x H
+            x, e = self.gcn_layers[layer](x.contiguous(), e.contiguous())  # B x V x H, B x V x V x H
+            print(f'After GCN layer {layer} - x contiguous: {x.is_contiguous()}')  # Check contiguity
+            print(f'After GCN layer {layer} - e contiguous: {e.is_contiguous()}')  # Check contiguity
+        """
         # MLP classifier
-        y_pred_edges = self.mlp_edges(e)  # B x V x V x voc_edges_out
-        # y_pred_nodes = self.mlp_nodes(x)  # B x V x voc_nodes_out
+        y_pred_edges = self.mlp_edges(e)
         
         # Compute loss
-        edge_cw = torch.Tensor(edge_cw).type(self.dtypeFloat)  # Convert to tensors
+        edge_cw = torch.tensor(edge_cw, dtype=self.dtypeFloat)  # Convert to tensors
         loss = loss_edges(y_pred_edges, y_edges, edge_cw)
         
         return y_pred_edges, loss

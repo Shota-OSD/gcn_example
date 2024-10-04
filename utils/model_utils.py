@@ -19,10 +19,15 @@ def loss_nodes(y_pred_nodes, y_nodes, node_cw):
         loss_nodes: Value of loss function
     
     """
+     # Ensure tensors are contiguous
+    y_pred_nodes = y_pred_nodes.contiguous()
+    y_nodes = y_nodes.contiguous()
+
     # Node loss
     y = F.log_softmax(y_pred_nodes, dim=2)  # B x V x voc_nodes_out
     y = y.permute(0, 2, 1)  # B x voc_nodes x V
-    loss_nodes = nn.NLLLoss(node_cw)(y, y_nodes)
+    criterion = nn.NLLLoss(weight=node_cw)
+    loss_nodes = criterion(y, y_nodes)
     return loss_nodes
 
 
@@ -39,11 +44,18 @@ def loss_edges(y_pred_edges, y_edges, edge_cw):
         loss_edges: Value of loss function
     
     """
+    # Ensure tensors are contiguous
+    y_pred_edges = y_pred_edges.contiguous()
+    y_edges = y_edges.contiguous()
+
     # Edge loss
     y = F.log_softmax(y_pred_edges, dim=3)  # B x V x V x voc_edges
-    y = y.permute(0, 3, 1, 2)  # B x voc_edges x V x V
-    loss_edges = nn.NLLLoss(edge_cw)(y, y_edges)
+    y = y.permute(0, 3, 1, 2).contiguous()  # B x voc_edges x V x V
+    criterion = nn.NLLLoss(weight=edge_cw)
+    loss_edges = criterion(y, y_edges)
+    
     return loss_edges
+
 
 
 def beamsearch_tour_nodes(y_pred_edges, beam_size, batch_size, num_nodes, dtypeFloat, dtypeLong, probs_type='raw', random_start=False):
@@ -62,6 +74,7 @@ def beamsearch_tour_nodes(y_pred_edges, beam_size, batch_size, num_nodes, dtypeF
     Returns: TSP tours in terms of node ordering (batch_size, num_nodes)
 
     """
+    
     if probs_type == 'raw':
         # Compute softmax over edge prediction matrix
         y = F.softmax(y_pred_edges, dim=3)  # B x V x V x voc_edges
@@ -118,9 +131,13 @@ def beamsearch_tour_nodes_shortest(y_pred_edges, x_edges_values, beam_size, batc
         # Consider the second dimension only
         y = y[:, :, :, 1]  # B x V x V
         y[y == 0] = -1e-20  # Set 0s (i.e. log(1)s) to very small negative number
+    else:
+        raise ValueError(f"Unsupported probs_type: {probs_type}")
+    
     # Perform beamsearch
     beamsearch = Beamsearch(beam_size, batch_size, num_nodes, dtypeFloat, dtypeLong, probs_type, random_start)
     trans_probs = y.gather(1, beamsearch.get_current_state())
+    
     for step in range(num_nodes - 1):
         beamsearch.advance(trans_probs)
         trans_probs = y.gather(1, beamsearch.get_current_state())
