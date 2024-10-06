@@ -6,6 +6,13 @@ from sklearn.utils import shuffle
 
 class DotDict(dict):
     """Wrapper around in-built dict class to access members through the dot operation.
+    d = DotDict(name="Alice", age=25)
+    print(d.name)  # "Alice" と表示される
+    print(d.age)   # 25 と表示される
+
+    # 通常の辞書としても機能
+    print(d['name'])  # "Alice"
+    print(d['age'])   # 25
     """
 
     def __init__(self, **kwds):
