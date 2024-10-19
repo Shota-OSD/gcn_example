@@ -65,12 +65,11 @@ class ResidualGatedGCNModel(nn.Module):
         e = torch.cat((e_vals, e_tags), dim=3)
         
         # GCN layers
-        """
         for layer in range(self.num_layers):
             x, e = self.gcn_layers[layer](x.contiguous(), e.contiguous())  # B x V x H, B x V x V x H
             print(f'After GCN layer {layer} - x contiguous: {x.is_contiguous()}')  # Check contiguity
             print(f'After GCN layer {layer} - e contiguous: {e.is_contiguous()}')  # Check contiguity
-        """
+            
         # MLP classifier
         y_pred_edges = self.mlp_edges(e)
         
